@@ -6,16 +6,16 @@
 <title>Assistente IA</title>
 <style>
   :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --panel-2: #1f232c;
-    --line: #2a2f3a;
-    --text: #e6e8ee;
+    --bg: #afb2b8f9;
+    --panel: #ffffff;
+    --panel-2: #c2c3c5;
+    --line: #ddd;
+    --text: #000000;
     --muted: #9aa3b2;
-    --accent: #6d5efc;
-    --accent-hover: #7d70ff;
-    --user: #6d5efc;
-    --bot: #232833;
+    --accent: #24abf4;
+    --accent-hover: #70c1ff;
+    --user: #5e98fc;
+    --bot: #efefef;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -197,10 +197,27 @@
     return wrap;
   }
 
-  // Resposta simulada. Substitua por uma chamada real à sua API/LLM.
+  // Histórico da conversa enviado ao backend (formato aceito pela API do Gemini).
+  const history = [];
+
+  // Chama o backend proxy, que guarda a chave da API com segurança.
   async function getReply(prompt) {
-    await new Promise((r) => setTimeout(r, 700 + Math.random() * 700));
-    return `Recebi sua mensagem: "${prompt}".\n\nEsta é uma resposta simulada — conecte aqui sua API de IA.`;
+    history.push({ role: 'user', parts: [{ text: prompt }] });
+
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: history }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      history.pop();
+      throw new Error(data.error || 'Falha ao contatar o servidor.');
+    }
+
+    history.push({ role: 'model', parts: [{ text: data.reply }] });
+    return data.reply;
   }
 
   async function handleSubmit(e) {
@@ -221,7 +238,7 @@
       addMessage(reply, 'bot');
     } catch (err) {
       typing.remove();
-      addMessage('Erro ao obter resposta. Tente novamente.', 'bot');
+      addMessage('Erro: ' + err.message, 'bot');
     } finally {
       sendBtn.disabled = false;
     }
